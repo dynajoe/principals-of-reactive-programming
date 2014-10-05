@@ -52,16 +52,13 @@ object BinaryTreeSet {
 
 }
 
-class BinaryTreeSet extends Actor {
+class BinaryTreeSet extends Actor with Stash {
   import BinaryTreeSet._
   import BinaryTreeNode._
 
   def createRoot: ActorRef = context.actorOf(BinaryTreeNode.props(0, initiallyRemoved = true))
 
   var root = createRoot
-
-  // optional
-  var pendingQueue = Queue.empty[Operation]
 
   // optional
   def receive = normal
@@ -85,17 +82,14 @@ class BinaryTreeSet extends Actor {
     * all non-removed elements into.
     */
   def garbageCollecting(newRoot: ActorRef): Receive = {
-    case op: Operation => {
-      pendingQueue = pendingQueue.enqueue(op)
-    }
     case GC => ()
     case CopyFinished => {
       root ! PoisonPill
       root = newRoot
-      pendingQueue.foreach(root.forward(_))
-      pendingQueue = Queue.empty[Operation]
+      unstashAll()
       context.unbecome()
     }
+    case _ => stash()
   }
 }
 
